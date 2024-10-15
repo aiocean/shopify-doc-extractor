@@ -61,7 +61,7 @@ func ParseDocPage(pageUrl string) (*DocPage, error) {
 	// add section list to the content markdown
 	sectionList := "## Sections\n\n"
 	for _, section := range docSections {
-		sectionList += fmt.Sprintf("- [%s](#%s)\n", section.Title, section.SectionAnchor)
+		sectionList += fmt.Sprintf("- [%s](%s%s)\n", section.Title, relativeUrl, section.SectionAnchor)
 	}
 	contentMarkdown = fmt.Sprintf("%s\n\n%s", contentMarkdown, sectionList)
 
