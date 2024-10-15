@@ -127,18 +127,15 @@ func extractHandler(c *fiber.Ctx) error {
 }
 
 var (
-	mdConverter *md.Converter
+	_mdConverter *md.Converter
 )
 
-func initMdConverter() {
-	mdConverter = md.NewConverter("", true, nil)
-}
-
 func convertHtmlToMarkdown(html string) (string, error) {
-	if mdConverter == nil {
-		initMdConverter()
+	if _mdConverter == nil {
+		_mdConverter = md.NewConverter("", true, nil)
 	}
-	return mdConverter.ConvertString(html)
+
+	return _mdConverter.ConvertString(html)
 }
 
 func main() {
