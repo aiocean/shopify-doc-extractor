@@ -13,19 +13,19 @@ import (
 )
 
 type DocPage struct {
-	DocTitle       string `json:"doc_title"`
-	ContentMarkdown string `json:"content_markdown"`
-	ResourceUrls []string `json:"resource_urls"`
-	DocSections []DocSection `json:"doc_sections"`
-	RelativeUrl string `json:"relative_url"`
+	DocTitle        string       `json:"doc_title"`
+	ContentMarkdown string       `json:"content_markdown"`
+	ResourceUrls    []string     `json:"resource_urls"`
+	DocSections     []DocSection `json:"doc_sections"`
+	RelativeUrl     string       `json:"relative_url"`
 }
 
 type DocSection struct {
-	Title string `json:"title"`
-	Order int `json:"order"`
-	SourceTitle string `json:"source_title"`
-	SourceUrl string `json:"source_url"`
-	SectionAnchor string `json:"section_anchor"`
+	Title           string `json:"title"`
+	Order           int    `json:"order"`
+	SourceTitle     string `json:"source_title"`
+	SourceUrl       string `json:"source_url"`
+	SectionAnchor   string `json:"section_anchor"`
 	ContentMarkdown string `json:"content_markdown"`
 }
 
@@ -58,6 +58,13 @@ func ParseDocPage(pageUrl string) (*DocPage, error) {
 		return nil, fmt.Errorf("failed to convert HTML to Markdown: %w", err)
 	}
 
+	// add section list to the content markdown
+	sectionList := "## Sections\n\n"
+	for _, section := range docSections {
+		sectionList += fmt.Sprintf("- [%s](#%s)\n", section.Title, section.SectionAnchor)
+	}
+	contentMarkdown = fmt.Sprintf("%s\n\n%s", contentMarkdown, sectionList)
+
 	return &DocPage{
 		DocTitle:        title,
 		RelativeUrl:     relativeUrl,
@@ -89,9 +96,9 @@ func parseDocSections(articleDocs *goquery.Selection, docTitle, relativeUrl stri
 		docSections = append(docSections, DocSection{
 			Order:           index,
 			Title:           title,
-			SourceTitle:  docTitle,
-			SourceUrl:     relativeUrl,
-			SectionAnchor: sectionAnchor,
+			SourceTitle:     docTitle,
+			SourceUrl:       relativeUrl,
+			SectionAnchor:   sectionAnchor,
 			ContentMarkdown: contentMarkdown,
 		})
 
@@ -100,7 +107,6 @@ func parseDocSections(articleDocs *goquery.Selection, docTitle, relativeUrl stri
 
 	return docSections
 }
-
 
 func extractHandler(c *fiber.Ctx) error {
 	url := c.Query("url")
@@ -117,7 +123,7 @@ func extractHandler(c *fiber.Ctx) error {
 }
 
 var (
-	mdConverter   *md.Converter
+	mdConverter *md.Converter
 )
 
 func initMdConverter() {
@@ -130,8 +136,6 @@ func convertHtmlToMarkdown(html string) (string, error) {
 	}
 	return mdConverter.ConvertString(html)
 }
-
-
 
 func main() {
 	app := fiber.New(fiber.Config{
