@@ -114,6 +114,10 @@ func extractHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "URL parameter is required"})
 	}
 
+	if !strings.HasPrefix(url, "https://shopify.dev") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "URL must start with https://shopify.dev"})
+	}
+
 	docPage, err := ParseDocPage(url)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to parse HTML"})
