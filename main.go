@@ -13,15 +13,14 @@ import (
 )
 
 type DocPage struct {
-	DocTitle        string       `json:"doc_title"`
+	SourceTitle        string       `json:"doc_title"`
 	ContentMarkdown string       `json:"content_markdown"`
-	ResourceUrls    []string     `json:"resource_urls"`
 	DocSections     []DocSection `json:"doc_sections"`
-	RelativeUrl     string       `json:"relative_url"`
+	SourceUrl       string       `json:"source_url"`
 }
 
 type DocSection struct {
-	Title           string `json:"title"`
+	SectionTitle           string `json:"section_title"`
 	Order           int    `json:"order"`
 	SourceTitle     string `json:"source_title"`
 	SourceUrl       string `json:"source_url"`
@@ -42,10 +41,10 @@ func ParseDocPage(pageUrl string) (*DocPage, error) {
 	}
 
 	title := strings.TrimSpace(doc.Find(".article-title").Text())
-	relativeUrl := strings.TrimPrefix(pageUrl, "https://shopify.dev")
+	sourceUrl := strings.TrimPrefix(pageUrl, "https://shopify.dev")
 	articleDocs := doc.Find(".article--docs")
 
-	docSections := parseDocSections(articleDocs, title, relativeUrl)
+	docSections := parseDocSections(articleDocs, title, sourceUrl)
 	articleDocs.Find("#FeedbackFloatingAnchor").Remove()
 
 	contentHtml, err := articleDocs.Html()
@@ -61,22 +60,38 @@ func ParseDocPage(pageUrl string) (*DocPage, error) {
 	// add section list to the content markdown
 	sectionList := "## Sections\n\n"
 	for _, section := range docSections {
-		sectionList += fmt.Sprintf("- [%s](%s%s)\n", section.Title, relativeUrl, section.SectionAnchor)
+		sectionList += fmt.Sprintf("- [%s](%s%s)\n", section.SectionTitle, sourceUrl, section.SectionAnchor)
 	}
 	contentMarkdown = fmt.Sprintf("%s\n\n%s", contentMarkdown, sectionList)
 
 	return &DocPage{
-		DocTitle:        title,
-		RelativeUrl:     relativeUrl,
+		SourceTitle:        title,
+		SourceUrl:       sourceUrl,
 		DocSections:     docSections,
 		ContentMarkdown: strings.TrimSpace(contentMarkdown),
 	}, nil
 }
 
-func parseDocSections(articleDocs *goquery.Selection, docTitle, relativeUrl string) []DocSection {
+func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string) []DocSection {
 	var docSections []DocSection
 
 	articleDocs.Find(".feedback-section").Each(func(index int, s *goquery.Selection) {
+		// Replace script elements with type="text/plain" with code blocks
+		s.Find("script[type='text/plain']").Each(func(i int, script *goquery.Selection) {
+			language := script.AttrOr("data-language", "")
+			title := script.AttrOr("data-title", "")
+			code := script.Text()
+			
+			var codeBlock string
+			if title != "" {
+				codeBlock = fmt.Sprintf("```%s title=\"%s\"\n%s\n```", language, title, code)
+			} else {
+				codeBlock = fmt.Sprintf("```%s\n%s\n```", language, code)
+			}
+			
+			script.ReplaceWithHtml(codeBlock)
+		})
+
 		contentHtml, err := s.Html()
 		if err != nil {
 			log.Printf("Error getting HTML for doc section: %v", err)
@@ -90,14 +105,13 @@ func parseDocSections(articleDocs *goquery.Selection, docTitle, relativeUrl stri
 		}
 
 		sectionAnchor := s.Find(".heading-wrapper > .article-anchor-link").AttrOr("href", "")
-
 		title := s.Find(".heading-wrapper > h2").Text()
 
 		docSections = append(docSections, DocSection{
 			Order:           index,
-			Title:           title,
+			SectionTitle:    title,
 			SourceTitle:     docTitle,
-			SourceUrl:       relativeUrl,
+			SourceUrl:       sourceUrl,
 			SectionAnchor:   sectionAnchor,
 			ContentMarkdown: contentMarkdown,
 		})
