@@ -9,26 +9,11 @@ import (
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/aiocean/shopify-doc-extractor/models"
 	"github.com/gofiber/fiber/v2"
 )
 
-type DocPage struct {
-	SourceTitle        string       `json:"doc_title"`
-	ContentMarkdown string       `json:"content_markdown"`
-	DocSections     []DocSection `json:"doc_sections"`
-	SourceUrl       string       `json:"source_url"`
-}
-
-type DocSection struct {
-	SectionTitle           string `json:"section_title"`
-	Order           int    `json:"order"`
-	SourceTitle     string `json:"source_title"`
-	SourceUrl       string `json:"source_url"`
-	SectionAnchor   string `json:"section_anchor"`
-	ContentMarkdown string `json:"content_markdown"`
-}
-
-func ParseDocPage(pageUrl string) (*DocPage, error) {
+func ParseDocPage(pageUrl string) (*models.DocPage, error) {
 	resp, err := http.Get(pageUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch page: %w", err)
@@ -64,7 +49,7 @@ func ParseDocPage(pageUrl string) (*DocPage, error) {
 	}
 	contentMarkdown = fmt.Sprintf("%s\n\n%s", contentMarkdown, sectionList)
 
-	return &DocPage{
+	return &models.DocPage{
 		SourceTitle:        title,
 		SourceUrl:       sourceUrl,
 		DocSections:     docSections,
@@ -72,8 +57,8 @@ func ParseDocPage(pageUrl string) (*DocPage, error) {
 	}, nil
 }
 
-func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string) []DocSection {
-	var docSections []DocSection
+func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string) []models.DocSection {
+	var docSections []models.DocSection
 
 	articleDocs.Find(".feedback-section").Each(func(index int, s *goquery.Selection) {
 		// Replace script elements with type="text/plain" with code blocks
@@ -107,7 +92,7 @@ func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string
 		sectionAnchor := s.Find(".heading-wrapper > .article-anchor-link").AttrOr("href", "")
 		title := s.Find(".heading-wrapper > h2").Text()
 
-		docSections = append(docSections, DocSection{
+		docSections = append(docSections, models.DocSection{
 			Order:           index,
 			SectionTitle:    title,
 			SourceTitle:     docTitle,
