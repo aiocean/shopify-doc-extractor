@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package extractor.v1;
+
+option go_package = "github.com/aiocean/shopify-doc-extractor/gen/extractor/v1;extractorv1";
+
+message ExtractRequest {
+  string url = 1;
+}
+
+message ExtractResponse {
+  DocPage doc_page = 1;
+}
+
+message DocPage {
+  string source_title = 1;
+  string content_markdown = 2;
+  repeated DocSection doc_sections = 3;
+  string source_url = 4;
+}
+
+message DocSection {
+  string section_title = 1;
+  int32 order = 2;
+  string source_title = 3;
+  string source_url = 4;
+  string section_anchor = 5;
+  string content_markdown = 6;
+}
+
+service ExtractorService {
+  rpc Extract(ExtractRequest) returns (ExtractResponse) {}
+}

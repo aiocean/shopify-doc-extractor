@@ -1,19 +1,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
+	"connectrpc.com/connect"
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/aiocean/shopify-doc-extractor/models"
-	"github.com/gofiber/fiber/v2"
+	extractorv1 "github.com/aiocean/shopify-doc-extractor/gen/extractor/v1"
+	"github.com/aiocean/shopify-doc-extractor/gen/extractor/v1/extractorv1connect"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
-func ParseDocPage(pageUrl string) (*models.DocPage, error) {
+func ParseDocPage(pageUrl string) (*extractorv1.DocPage, error) {
 	resp, err := http.Get(pageUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch page: %w", err)
@@ -49,7 +52,7 @@ func ParseDocPage(pageUrl string) (*models.DocPage, error) {
 	}
 	contentMarkdown = fmt.Sprintf("%s\n\n%s", contentMarkdown, sectionList)
 
-	return &models.DocPage{
+	return &extractorv1.DocPage{
 		SourceTitle:        title,
 		SourceUrl:       sourceUrl,
 		DocSections:     docSections,
@@ -57,8 +60,8 @@ func ParseDocPage(pageUrl string) (*models.DocPage, error) {
 	}, nil
 }
 
-func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string) []models.DocSection {
-	var docSections []models.DocSection
+func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string) []*extractorv1.DocSection {
+	var docSections []*extractorv1.DocSection
 
 	articleDocs.Find(".feedback-section").Each(func(index int, s *goquery.Selection) {
 		// Replace script elements with type="text/plain" with code blocks
@@ -92,8 +95,8 @@ func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string
 		sectionAnchor := s.Find(".heading-wrapper > .article-anchor-link").AttrOr("href", "")
 		title := s.Find(".heading-wrapper > h2").Text()
 
-		docSections = append(docSections, models.DocSection{
-			Order:           index,
+		docSections = append(docSections, &extractorv1.DocSection{
+			Order:           int32(index),
 			SectionTitle:    title,
 			SourceTitle:     docTitle,
 			SourceUrl:       sourceUrl,
@@ -105,24 +108,6 @@ func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string
 	})
 
 	return docSections
-}
-
-func extractHandler(c *fiber.Ctx) error {
-	url := c.Query("url")
-	if url == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "URL parameter is required"})
-	}
-
-	if !strings.HasPrefix(url, "https://shopify.dev") {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "URL must start with https://shopify.dev"})
-	}
-
-	docPage, err := ParseDocPage(url)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to parse HTML"})
-	}
-
-	return c.JSON(docPage)
 }
 
 var (
@@ -137,22 +122,32 @@ func convertHtmlToMarkdown(html string) (string, error) {
 	return _mdConverter.ConvertString(html)
 }
 
-func main() {
-	app := fiber.New(fiber.Config{
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-		},
+
+type ExtractorServer struct{}
+
+func (s *ExtractorServer) Extract(
+	ctx context.Context,
+	req *connect.Request[extractorv1.ExtractRequest],
+) (*connect.Response[extractorv1.ExtractResponse], error) {
+	docPage, err := ParseDocPage(req.Msg.Url)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to parse HTML: %w", err))
+	}
+
+	res := connect.NewResponse(&extractorv1.ExtractResponse{
+		DocPage: docPage,
 	})
 
-	app.Get("/extract", extractHandler)
+	return res, nil
+}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	log.Printf("Server starting on port %s", port)
-	if err := app.Listen(fmt.Sprintf(":%s", port)); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+func main() {
+	extractor := &ExtractorServer{}
+	mux := http.NewServeMux()
+	path, handler := extractorv1connect.NewExtractorServiceHandler(extractor)
+	mux.Handle(path, handler)
+	http.ListenAndServe(
+		"localhost:8080",
+	h2c.NewHandler(mux, &http2.Server{}),
+	)
 }
