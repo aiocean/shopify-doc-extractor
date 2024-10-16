@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -146,8 +147,14 @@ func main() {
 	mux := http.NewServeMux()
 	path, handler := extractorv1connect.NewExtractorServiceHandler(extractor)
 	mux.Handle(path, handler)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	http.ListenAndServe(
-		"localhost:8080",
-	h2c.NewHandler(mux, &http2.Server{}),
+		fmt.Sprintf(":%s", port),
+		h2c.NewHandler(mux, &http2.Server{}),
 	)
 }
