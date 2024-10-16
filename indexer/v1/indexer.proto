@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package indexer.v1;
+
+option go_package = "github.com/aiocean/shopify-doc-extractor/gen/indexer/v1;indexerv1";
+import "extractor/v1/extractor.proto";
+
+service IndexerService {
+    rpc Index(IndexRequest) returns (IndexResponse) {}
+}
+
+message IndexRequest {
+    string url = 1;
+    extractor.v1.DocPage doc_page = 2;
+}
+
+message IndexResponse {
+    bool success = 1;
+}

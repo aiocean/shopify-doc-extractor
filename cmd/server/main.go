@@ -15,6 +15,9 @@ import (
 	"github.com/aiocean/shopify-doc-extractor/gen/extractor/v1/extractorv1connect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+
+	indexerv1 "github.com/aiocean/shopify-doc-extractor/gen/indexer/v1"
+	indexerv1connect "github.com/aiocean/shopify-doc-extractor/gen/indexer/v1/indexerv1connect"
 )
 
 func ParseDocPage(pageUrl string) (*extractorv1.DocPage, error) {
@@ -142,11 +145,28 @@ func (s *ExtractorServer) Extract(
 	return res, nil
 }
 
+type IndexerServer struct{}
+
+func (s *IndexerServer) Index(
+	ctx context.Context,
+	req *connect.Request[indexerv1.IndexRequest],
+) (*connect.Response[indexerv1.IndexResponse], error) {
+	return connect.NewResponse(&indexerv1.IndexResponse{
+		Success: true,
+	}), nil
+}
+
 func main() {
 	extractor := &ExtractorServer{}
 	mux := http.NewServeMux()
-	path, handler := extractorv1connect.NewExtractorServiceHandler(extractor)
-	mux.Handle(path, handler)
+	extractorPath, extractorHandler := extractorv1connect.NewExtractorServiceHandler(extractor)
+	mux.Handle(extractorPath, extractorHandler)
+
+	indexer := &IndexerServer{}
+	indexerPath, indexerHandler := indexerv1connect.NewIndexerServiceHandler(indexer)
+	mux.Handle(indexerPath, indexerHandler)
+
+
 
 	port := os.Getenv("PORT")
 	if port == "" {
