@@ -10,7 +10,6 @@ service IndexerService {
 }
 
 message IndexRequest {
-    string url = 1;
     extractor.v1.DocPage doc_page = 2;
 }
 
