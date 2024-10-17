@@ -13,6 +13,8 @@ require (
 	google.golang.org/protobuf v1.34.2
 )
 
+require github.com/sashabaranov/go-openai v1.32.2 // indirect
+
 require (
 	cloud.google.com/go v0.115.0 // indirect
 	cloud.google.com/go/ai v0.8.0 // indirect

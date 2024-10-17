@@ -1,4 +1,4 @@
-package extractorserver
+package extractor
 
 import (
 	"context"
@@ -31,7 +31,6 @@ func (s *ExtractorServer) Extract(
 
 	return res, nil
 }
-
 
 func ParseDocPage(pageUrl string) (*extractorv1.DocPage, error) {
 	resp, err := http.Get(pageUrl)
@@ -70,7 +69,7 @@ func ParseDocPage(pageUrl string) (*extractorv1.DocPage, error) {
 	contentMarkdown = fmt.Sprintf("%s\n\n%s", contentMarkdown, sectionList)
 
 	return &extractorv1.DocPage{
-		SourceTitle:        title,
+		SourceTitle:     title,
 		SourceUrl:       sourceUrl,
 		DocSections:     docSections,
 		ContentMarkdown: strings.TrimSpace(contentMarkdown),
@@ -86,14 +85,14 @@ func parseDocSections(articleDocs *goquery.Selection, docTitle, sourceUrl string
 			language := script.AttrOr("data-language", "")
 			title := script.AttrOr("data-title", "")
 			code := script.Text()
-			
+
 			var codeBlock string
 			if title != "" {
 				codeBlock = fmt.Sprintf("```%s title=\"%s\"\n%s\n```", language, title, code)
 			} else {
 				codeBlock = fmt.Sprintf("```%s\n%s\n```", language, code)
 			}
-			
+
 			script.ReplaceWithHtml(codeBlock)
 		})
 

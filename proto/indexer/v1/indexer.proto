@@ -7,6 +7,7 @@ import "extractor/v1/extractor.proto";
 
 service IndexerService {
     rpc Index(IndexRequest) returns (IndexResponse) {}
+    rpc ListUrls(ListUrlsRequest) returns (ListUrlsResponse) {}
 }
 
 message IndexRequest {
@@ -15,4 +16,12 @@ message IndexRequest {
 
 message IndexResponse {
     bool success = 1;
+}
+
+message ListUrlsRequest {
+    string prefix = 1;
+}
+
+message ListUrlsResponse {
+    repeated string urls = 1;
 }
